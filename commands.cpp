@@ -1,13 +1,15 @@
 //		commands.c
 //********************************************
 #include "commands.h"
+
+
 //********************************************
 // function name: ExeCmd
 // Description: interperts and executes built-in commands
 // Parameters: pointer to jobs, command string
 // Returns: 0 - success,1 - failure
 //**************************************************************************************
-int ExeCmd(void* jobs, char* lineSize, char* cmdString)
+int ExeCmd(void* jobs, char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 {
 	char* cmd; 
 	char* args[MAX_ARG];
@@ -15,11 +17,11 @@ int ExeCmd(void* jobs, char* lineSize, char* cmdString)
 
 	//Check
 
-	char* hist[MAX_HISTORY];
 	
+
 	char* delimiters = " \t\n";  
 	int i = 0, num_arg = 0;
-	bool illegal_cmd = FALSE; // illegal command
+	bool illegal_cmd = 'FALSE'; // illegal command
     	cmd = strtok(lineSize, delimiters);
 	if (cmd == NULL)
 		return 0; 
@@ -39,19 +41,24 @@ int ExeCmd(void* jobs, char* lineSize, char* cmdString)
 /*************************************************/
 	if (!strcmp(cmd, "cd") ) 
 	{
+		//check the strlen function and maybe put size of
+		getcwd(pwd, strlen(pwd));
+
 		if(args[1] == "-")
 		{
-			getcwd(pwd, sizeof(pwd));
-			execl("/bin/cd","cd",last_pwd,0)
-			last_pwd = pwd;
+
+			if(last_pwd)
+			{
+				execl("/bin/cd","cd",last_pwd,0);
+			}
+			strcpy(last_pwd,pwd);
 		}
 		else{
-			getcwd(pwd, sizeof(pwd));
 			if(execl("/bin/cd","cd",args[1],0) == -1)
 			{
 				printf("%s - path not found", args[1]);
 			} else {
-				last_pwd = pwd;
+				strcpy(last_pwd,pwd);
 			}
 		}
 	} 
@@ -66,6 +73,16 @@ int ExeCmd(void* jobs, char* lineSize, char* cmdString)
 	else if (!strcmp(cmd, "mkdir"))
 	{
  		execl("/bin/mkdir","mkdir",args[1],0)
+	}
+	/*************************************************/
+	else if (!strcmp(cmd, "history"))
+	{
+	 	if(hist != NULL){
+	 		for (string old_cmd : hist)
+	 		{
+	 		        std::cout << old_cmd << '\n';
+	 		}
+	 	}
 	}
 	/*************************************************/
 	

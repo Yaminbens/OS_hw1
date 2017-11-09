@@ -15,6 +15,14 @@ main file. This file contains the main function of smash
 
 #define MAX_HISTORY 50
 
+
+
+//CPP
+#include <iostream>
+using namespace std;
+#include <list>
+#include <string.h>
+
 char* L_Fg_Cmd;
 void* jobs = NULL; //This represents the list of jobs. Please change to a preferred type (e.g array of char*)
 char lineSize[MAX_LINE_SIZE]; 
@@ -22,12 +30,15 @@ char lineSize[MAX_LINE_SIZE];
 // function name: history_update
 // Description:
 //**************************************************************************************
-int history_update(char* histo, int index)
+int history_update(list<string>&  hist, char* cmd)
 {
-	if(index > 49)
+	if(hist.size() > 50)
 	{
-		///testchange
+		hist.pop_front();
 	}
+	char* command;
+	strcpy(command, cmd);
+	hist.push_back(command);
 }
 
 //**************************************************************************************
@@ -36,7 +47,7 @@ int history_update(char* histo, int index)
 //**************************************************************************************
 int main(int argc, char *argv[])
 {
-    char cmdString[MAX_LINE_SIZE]; 	   
+    char cmdString[MAX_LINE_SIZE];
 
 	
 	//signal declaretions
@@ -52,9 +63,8 @@ int main(int argc, char *argv[])
 
 	/************************************/
 	// Init globals 
-    char* last_pwd[MAX_LINE_SIZE];
-    char* hist[MAX_HISTORY];
-    int hist_ind;
+    char last_pwd[MAX_LINE_SIZE];
+    list<string> hist;
 
 	
 	L_Fg_Cmd =(char*)malloc(sizeof(char)*(MAX_LINE_SIZE+1));
@@ -67,8 +77,7 @@ int main(int argc, char *argv[])
 	 	printf("smash > ");
 		fgets(lineSize, MAX_LINE_SIZE, stdin);
 		strcpy(cmdString, lineSize);
-		//changes
-		history_update(hist,hist_ind);
+
 
 		//
 		cmdString[strlen(lineSize)-1]='\0';
@@ -77,8 +86,10 @@ int main(int argc, char *argv[])
 					// background command	
 	 	if(!BgCmd(lineSize, jobs)) continue; 
 					// built in commands
-		ExeCmd(jobs, lineSize, cmdString, last_pwd, hist);
+	 	ExeCmd(jobs, lineSize,cmdString,last_pwd,hist);
 		
+		//changes - yamin
+		history_update(hist,cmdString);
 		/* initialize for next line read*/
 		lineSize[0]='\0';
 		cmdString[0]='\0';
