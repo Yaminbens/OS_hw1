@@ -3,7 +3,7 @@ main file. This file contains the main function of smash
 *******************************************************************/
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h> 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +11,6 @@ main file. This file contains the main function of smash
 #include "commands.h"
 #include "signals.h"
 #define MAX_LINE_SIZE 80
-#define MAXARGS 20
 
 #define MAX_HISTORY 50
 
@@ -21,22 +20,30 @@ main file. This file contains the main function of smash
 #include <iostream>
 using namespace std;
 #include <list>
-#include <string.h>
+#include <vector>
+#include <string>
+#include <ctime>
 
 char* L_Fg_Cmd;
-void* jobs = NULL; //This represents the list of jobs. Please change to a preferred type (e.g array of char*)
+struct sigaction act;
+
+vector<job> jobs;
+job fg_job;
+
+
+
 char lineSize[MAX_LINE_SIZE]; 
 //**************************************************************************************
 // function name: history_update
 // Description:
 //**************************************************************************************
-int history_update(list<string>&  hist, char* cmd)
+void history_update(list<string>&  hist, char* cmd)
 {
 	if(hist.size() > 50)
 	{
 		hist.pop_front();
 	}
-	char* command;
+	char command[MAX_LINE_SIZE];
 	strcpy(command, cmd);
 	hist.push_back(command);
 }
@@ -47,20 +54,23 @@ int history_update(list<string>&  hist, char* cmd)
 //**************************************************************************************
 int main(int argc, char *argv[])
 {
+
     char cmdString[MAX_LINE_SIZE];
 
 	
 	//signal declaretions
 	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
 	 /* add your code here */
-	
+    act.sa_handler = &catch_int;
 	/************************************/
 	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
 	//set your signal handlers here
 	/* add your code here */
 
 	/************************************/
-
+    sigaction(SIGTSTP, &act, NULL);
+    sigaction(SIGCHLD, &act, NULL);
+    sigaction(SIGINT, &act, NULL);
 	/************************************/
 	// Init globals 
     char last_pwd[MAX_LINE_SIZE];
@@ -82,18 +92,18 @@ int main(int argc, char *argv[])
 		//
 		cmdString[strlen(lineSize)-1]='\0';
 					// perform a complicated Command
-		if(!ExeComp(lineSize)) continue; 
+		if(!ExeComp(lineSize)) continue;
 					// background command	
-	 	if(!BgCmd(lineSize, jobs)) continue; 
+	 	if(!BgCmd(lineSize)) continue;
 					// built in commands
-	 	ExeCmd(jobs, lineSize,cmdString,last_pwd,hist);
+	 	ExeCmd(lineSize,cmdString,last_pwd,hist);
 		
 		//changes - yamin
 		history_update(hist,cmdString);
 		/* initialize for next line read*/
 		lineSize[0]='\0';
 		cmdString[0]='\0';
-	}
+    	}
     return 0;
 }
 
