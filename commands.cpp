@@ -82,18 +82,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 			printf("%s\n", pwd);
 		}
 	}
-	
-	/*************************************************/
-	/*
-	else if (!strcmp(cmd, "mkdir"))
-	{
-		if(num_arg == 1) {
-			execl("/bin/mkdir","mkdir",args[1],0);
-		}else{
-			illegal_cmd = TRUE;
-		}
-	}
-	*/
+
 	/*************************************************/
 	else if (!strcmp(cmd, "mv"))
 	{ //MAYA: Should we check that args[2] is a new file name (doesn't exist)?
@@ -216,10 +205,12 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 	//MAYA:		fg_job.setStopTime(0);  ???
 
 			sleep(1);
-
+			//Here we test dignals, must not be in comment
+			//TODO:
 			if (waitpid(fg_job.getPid(), NULL, WNOHANG) == 0) { //wait for fg job to finish
 				waitpid(fg_job.getPid(), NULL, WUNTRACED);
 			}
+
 		}
 	} 
 
@@ -307,12 +298,11 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 	}/*************************************************/
 	else if (!strcmp(cmd, "quit"))
 	{
-		if (num_arg == 1) {
-			//delete &fg_job;
+		if (num_arg == 0) {
 			exit(1);
 		}
 
-		if (num_arg==2 && strcmp(args[1],"kill")){
+		if (num_arg==1 && strcmp(args[1],"kill")){
 			for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
 				bool invalidFlag = false;
 				if (it->getPid()>0) {
@@ -341,12 +331,13 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 					}
 				}
 			}
+			exit(1);
 		}
 	}
 	/*************************************************/
 	else // external command
 	{
- 		ExeExternal(args, cmdString);
+ 		ExeExternal(args, cmd);
 	 	return 0;
 	}
 	if (illegal_cmd == TRUE)
@@ -364,35 +355,33 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 //**************************************************************************************
 void ExeExternal(char *args[MAX_ARG], char* cmdString)
 {
-	int pID;
-    	switch(pID = fork()) 
+	int pID = fork();
+	switch (pID)
 	{
-    		case -1: 
-					perror("Failed to execute");
-					break;
-					
-        	case 0 :
-                	// Child Process
-               		setpgrp();
-			        // Add your code here (execute an external command)
-            		if (!execvp(cmdString, args)){
-            			perror("invalid command\n");
-            			exit(1);
-            		}
-               		break;
+		case -1:
+				perror("Failed to execute");
+				break;
 
-			default:
-					//update current fg job
-					fg_job.setName(cmdString);
-					fg_job.setPid(pID);
-					fg_job.setTime(time(0)); ///MAYA: right?
-					fg_job.setStopped(FALSE);
-					
-					if (waitpid(pID, NULL, WNOHANG) == 0) {
-						//wait for fg job to finish
-						waitpid(pID, NULL, WUNTRACED);
-					}
-					break;
+		case 0 :
+				// Child Process
+				setpgrp();
+				execvp(cmdString, args); // change process to activate cmd
+				perror("invalid command\n"); // if execvp failed
+				exit(1);
+				break;
+
+		default:
+				//update current fg job
+				fg_job.setName(cmdString);
+				fg_job.setPid(pID);
+				fg_job.setTime(time(0)); ///MAYA: right?
+				fg_job.setStopped(FALSE);
+
+				if (waitpid(pID, NULL, WNOHANG) == 0) {
+					//wait for fg job to finish
+					waitpid(pID, NULL, WUNTRACED);
+				}
+				break;
 	}
 }
 //**************************************************************************************
@@ -408,7 +397,7 @@ int ExeComp(char* lineSize)
     if ((strstr(lineSize, "|")) || (strstr(lineSize, "<")) || (strstr(lineSize, ">")) || (strstr(lineSize, "*")) || (strstr(lineSize, "?")) || (strstr(lineSize, ">>")) || (strstr(lineSize, "|&")))
     {
 		// Add your code here (execute a complicated command)
-    	char st[10] = "/bin/csh";
+    	char st[10] = "/bin/sh";
 
 		arguments[0] = st;
 		arguments[1] = "-c";
@@ -430,7 +419,9 @@ int ExeComp(char* lineSize)
 //**************************************************************************************
 int BgCmd(char* lineSize)
 {
-
+	int fd[1];
+	char flag[1];
+    char readbuffer[80];
 	char* Command;
 	char* delimiters = " \t\n";
 	char *args[MAX_ARG];
@@ -439,50 +430,57 @@ int BgCmd(char* lineSize)
 		lineSize[strlen(lineSize)-2] = '\0';
 		// Add your code here (execute a in the background)
 		int num_arg = 0;
-				// set command and arguments
-				Command = strtok(lineSize, delimiters);
-				if (!Command)
-					return 0;
-				args[0] = Command;
-				for (int i = 1; i < MAX_ARG; i++) {
-					args[i] = strtok(NULL, delimiters);
-					num_arg+=1;
-					if (args[i] == NULL){
-						num_arg-=1;
-						break;
-					}
-				}
-
-				int pID;
-				switch(pID = fork())
-				{
-					case -1:
-						perror("Failed to execute");
-						break;
-
-					case 0:
-						// Child Process
-						setpgrp();
-						//execute an external command in bg
-						if (!execvp(Command, args)){
-							perror("invalid command\n");
-							exit(1);
-						}
-						break;
-
-					default:
-						for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){ // add job to jobs
-							if (it->getPid() == 0) {
-								it->setPid(pID);
-								it->setName(Command);
-								it->setTime(time(0)); ///MAYA: right?
-								it->setStopped(FALSE);
-								return 0; ///MAYA: right?
-							}
-						break;
-					}
+			// set command and arguments
+			Command = strtok(lineSize, delimiters);
+			if (!Command)
+				return 0;
+			args[0] = Command;
+			for (int i = 1; i < MAX_ARG; i++) {
+				args[i] = strtok(NULL, delimiters);
+				num_arg+=1;
+				if (args[i] == NULL){
+					num_arg-=1;
+					break;
 				}
 			}
+			pipe(fd);
+			int pID;
+			switch(pID = fork())
+			{
+				case -1:
+					perror("Failed to execute");
+					break;
+
+				case 0:
+					// Child Process
+					setpgrp();
+					//execute an external command in bg
+					if (execvp(Command, args) == -1){
+						//perror("invalid command\n");
+						strcpy(flag,"0");
+						write(fd[1], flag, (strlen(flag)+1));
+					}else{
+						strcpy(flag,"1");
+						//dup2(0, fd[0]);
+						write(fd[1], flag, (strlen(flag)+1));
+					}
+					exit(1);
+					break;
+
+				default:
+					sleep(1);
+					read(fd[0], readbuffer, sizeof(readbuffer));
+					if(strcmp(readbuffer,"1") == 0) { // command valid
+						job new_job;
+						new_job.setName(Command);
+						new_job.setPid(pID);
+						new_job.setTime(time(0));
+						new_job.setStopped(false);
+						jobs.push_back(new_job);
+					}
+					return 0;
+			}
+		}
 	return -1;
 }
 

@@ -24,7 +24,7 @@ using namespace std;
 #include <string>
 #include <ctime>
 
-char* L_Fg_Cmd;
+
 struct sigaction act;
 
 vector<job> jobs;
@@ -76,15 +76,9 @@ int main(int argc, char *argv[])
     char last_pwd[MAX_LINE_SIZE];
     list<string> hist;
 
-	
-	L_Fg_Cmd =(char*)malloc(sizeof(char)*(MAX_LINE_SIZE+1));
-	if (L_Fg_Cmd == NULL) 
-			exit (-1); 
-	L_Fg_Cmd[0] = '\0';
-	
-    	while (1)
-    	{
-	 	printf("smash > ");
+	while (1)
+	{
+		printf("smash > ");
 		fgets(lineSize, MAX_LINE_SIZE, stdin);
 		strcpy(cmdString, lineSize);
 
@@ -94,16 +88,16 @@ int main(int argc, char *argv[])
 					// perform a complicated Command
 		if(!ExeComp(lineSize)) continue;
 					// background command	
-	 	if(!BgCmd(lineSize)) continue;
+		if(!BgCmd(lineSize)) continue;
 					// built in commands
-	 	ExeCmd(lineSize,cmdString,last_pwd,hist);
+		ExeCmd(lineSize,cmdString,last_pwd,hist);
 		
 		//changes - yamin
 		history_update(hist,cmdString);
 		/* initialize for next line read*/
 		lineSize[0]='\0';
 		cmdString[0]='\0';
-    	}
+	}
     return 0;
 }
 

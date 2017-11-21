@@ -97,13 +97,9 @@ void catch_int(int sig_num) {
 	case SIGINT: //CTRL+C was pressed
 		//printf("handling SIGINT, pid is %d\n", fg_job.getPid());
 		pid = fg_job.getPid();
-		for (unsigned int i = 0; i < jobs.size(); i++) { // find place and add to jobs list
-			if (jobs[i].getPid() == pid) {
-				jobs[i].setPid(0);
-				jobs[i].setName("");
-				jobs[i].setTime(0);
-				jobs[i].setStopTime();
-				//printf("done\n");
+		for (vector<job>::iterator it=jobs.begin(); it != jobs.end(); ++it) { // find place and add to jobs list
+			if (it->getPid() == pid) {
+				jobs.erase(it);
 				break;
 			}
 		}
