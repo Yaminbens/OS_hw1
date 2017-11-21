@@ -1,7 +1,7 @@
 //		commands.c
 //********************************************
 #include "commands.h"
-
+#include <unistd.h>
 
 
 
@@ -126,7 +126,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 			if(!jobs.empty()){
 				for(unsigned int i = 0; i< jobs.size(); i++)
 				{
-					std::cout << "[" << i << "] "
+					std::cout << "[" << i+1 << "] "
 							<< jobs[i].getName() <<" : " <<  jobs[i].getPid()
 							<< " " <<  jobs[i].getTime() << " "
 							<< "secs" << '\n';
@@ -155,7 +155,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 					perror("invalid job index\n");
 					return 1;
 				}else{
-					currjob =atoi(args[1]);
+					currjob =atoi(args[1])-1;
 				}
 			}else{ //fg last job
 				//find last not stopped job
@@ -169,18 +169,6 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 						}
 				//	}
 				}
-
-/*				//MAYA: I think it should be:
-				time_t time = -1;
-				for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
-					if(!*it->isStopped()){
-						if(*it->getRunTime() > time){
-							time = *it->getRunTime(); //MAYA: and need to change getRunTime() to return time_t value
-							currjob = it - jobs.begin();
-						}
-					}
-				}
-*/
 
 				if(currjob == -1){
 					perror("no jobs found\n"); // no jobs found
@@ -202,7 +190,6 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 			fg_job.setPid(jobs[currjob].getPid());
 			fg_job.setTime(jobs[currjob].getTime());
 			fg_job.setStopped(jobs[currjob].isStopped());
-	//MAYA:		fg_job.setStopTime(0);  ???
 
 			sleep(1);
 			//Here we test dignals, must not be in comment
@@ -240,17 +227,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 						}
 					}
 				}
-/*				//MAYA: I think it should be:
-				time_t time = -1;
-				for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
-					if(!*it-> isStopped() && *it->getStopTime() > 0){
-						if(*it->getStopTime() > lastStopped){
-							lastStopped = *it; //MAYA: and need to change getRunTime() to return time_t value
-							time = *it->getStopTime();
-						}
-					}
-				}
-*/
+
 				if(lastStopped == -1){
 					perror("no jobs found\n"); // no jobs found
 					return 1;
@@ -419,16 +396,12 @@ int ExeComp(char* lineSize)
 //**************************************************************************************
 int BgCmd(char* lineSize)
 {
-	int fd[1];
-	char flag[1];
-    char readbuffer[80];
 	char* Command;
 	char* delimiters = " \t\n";
 	char *args[MAX_ARG];
 	if (lineSize[strlen(lineSize)-2] == '&')
 	{
 		lineSize[strlen(lineSize)-2] = '\0';
-		// Add your code here (execute a in the background)
 		int num_arg = 0;
 			// set command and arguments
 			Command = strtok(lineSize, delimiters);
@@ -443,7 +416,6 @@ int BgCmd(char* lineSize)
 					break;
 				}
 			}
-			pipe(fd);
 			int pID;
 			switch(pID = fork())
 			{
@@ -454,30 +426,20 @@ int BgCmd(char* lineSize)
 				case 0:
 					// Child Process
 					setpgrp();
-					//execute an external command in bg
 					if (execvp(Command, args) == -1){
-						//perror("invalid command\n");
-						strcpy(flag,"0");
-						write(fd[1], flag, (strlen(flag)+1));
-					}else{
-						strcpy(flag,"1");
-						//dup2(0, fd[0]);
-						write(fd[1], flag, (strlen(flag)+1));
+						perror("invalid command\n");
 					}
 					exit(1);
 					break;
 
 				default:
-					sleep(1);
-					read(fd[0], readbuffer, sizeof(readbuffer));
-					if(strcmp(readbuffer,"1") == 0) { // command valid
-						job new_job;
-						new_job.setName(Command);
-						new_job.setPid(pID);
-						new_job.setTime(time(0));
-						new_job.setStopped(false);
-						jobs.push_back(new_job);
-					}
+					//sleep(1);
+					job new_job;
+					new_job.setName(Command);
+					new_job.setPid(pID);
+					new_job.setTime(time(0));
+					new_job.setStopped(false);
+					jobs.push_back(new_job);
 					return 0;
 			}
 		}
