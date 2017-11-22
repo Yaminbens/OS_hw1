@@ -21,7 +21,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 
 	
 
-	char* delimiters = " \t\n";  
+	const char* delimiters = " \t\n";
 	int i = 0, num_arg = 0;
 	bool illegal_cmd = false; // illegal command
     	cmd = strtok(lineSize, delimiters);
@@ -46,7 +46,8 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 		getcwd(pwd, MAX_LINE_SIZE);
 		if(num_arg == 1)
 		{
-			if(!strcmp(args[1],"-")) // strings are identical
+			// cd to last dir
+			if(!strcmp(args[1],"-"))
 			{
 				if(last_pwd)
 				{
@@ -59,6 +60,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 					cout << "smash error: > " << args[1] <<  "(prev_path) - path not found" << endl;
 				}
 			}
+			// cd to new dir
 			else{
 				if(chdir(args[1]) == -1)
 				{
@@ -85,20 +87,24 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 
 	/*************************************************/
 	else if (!strcmp(cmd, "mv"))
-	{ //MAYA: Should we check that args[2] is a new file name (doesn't exist)?
+	{
 		if (num_arg!=2)
 		{
 			illegal_cmd = true;
 		} else {
+			//check file exists
 			if(FILE * file = fopen(args[1], "r")){
 				fclose(file);
+				//try to rename file
 				if(rename(args[1], args[2]) == 0){
 					cout << args[1] << " has been renamed to " << args[2] << endl;
 				} else {
-					perror("problem with mv");
+					//couldnt change file name
+					perror("problem with mv - couldnt change name of file");
 				}
 			} else {
-				perror("problem with mv");
+				//couldnt find or access file
+				perror("problem with mv - file might not exist or be immutable");
 			}
 		}
 	}
@@ -150,6 +156,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 		if(num_arg>1){
 			illegal_cmd = TRUE;
 		}else{
+			// fg to certain job number
 			if(num_arg == 1){
 				if(atoi(args[1])>jobs.size() || atoi(args[1])<0){
 					perror("invalid job index\n");
@@ -157,27 +164,24 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 				}else{
 					currjob =atoi(args[1])-1;
 				}
-			}else{ //fg last job
-				//find last not stopped job
-
+			}else{
+				// fg to last job
 				time_t time_t = -1;
 				for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
-					//if(!*it->isStopped()){ // Yamin : I assumed we choose the job that was the last to be run (so only choosing between running jobs)
 						if(it->getRunTime() > time_t){
 							time_t = it->getRunTime();
 							currjob = it - jobs.begin();
 						}
-				//	}
 				}
-
+				// no jobs found
 				if(currjob == -1){
-					perror("no jobs found\n"); // no jobs found
+					perror("no jobs found\n");
 					return 1;
 				}
 			}
 
 			cout << jobs[currjob].getName() << endl;
-			//if job is stopped, we continue it by signal
+			//if job is stopped, we continue by sending signal
 			if (jobs[currjob].isStopped()) {
 				if (kill(jobs[currjob].getPid(), SIGCONT) == -1) {
 					perror("signal failed\n");
@@ -192,9 +196,8 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 			fg_job.setStopped(jobs[currjob].isStopped());
 
 			sleep(1);
-			//Here we test dignals, must not be in comment
-			//TODO:
-			if (waitpid(fg_job.getPid(), NULL, WNOHANG) == 0) { //wait for fg job to finish
+			//wait for fg job to finish
+			if (waitpid(fg_job.getPid(), NULL, WNOHANG) == 0) {
 				waitpid(fg_job.getPid(), NULL, WUNTRACED);
 			}
 
@@ -208,6 +211,7 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 		if(num_arg>1){
 			illegal_cmd = TRUE;
 		}else{
+			// bg to certain job number
 			if(num_arg == 1){
 				if(atoi(args[1])>jobs.size() || atoi(args[1])<0){
 					perror("invalid job index\n");
@@ -215,27 +219,23 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 				}else{
 					lastStopped =atoi(args[1]);
 				}
-			}else{ //bg to last job that got ctrl-Z
-				//find last paused job
-
-				long time_t = -1;
+			}else{
+				//bg to last job that got ctrl-Z
 				for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
 					if(it->isStopped() && it->getStopTime() > 0){
 						if(it->getStopTime() > lastStopped){
 							lastStopped = it - jobs.begin();
-							time_t = it->getStopTime();
 						}
 					}
 				}
-
+				// no jobs found
 				if(lastStopped == -1){
-					perror("no jobs found\n"); // no jobs found
+					perror("no jobs found\n");
 					return 1;
 				}
 			}
-
+			//case job is stopped, send signal to continue it
 			cout << jobs[lastStopped].getName() << endl;
-			//if job is stopped, we continue it by signal
 			if (jobs[lastStopped].isStopped()) {
 				if (kill(jobs[lastStopped].getPid(), SIGCONT) == -1) {
 					perror("signal failed\n");
@@ -253,37 +253,34 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 		if(num_arg != 2){
 			illegal_cmd = TRUE;
 		}
-		int len = string(args[1]).length();
 		if(string(args[1]).substr(0,1) != "-"){
 			illegal_cmd = TRUE;
 		}
 		int sig = -atoi(string(args[1]).c_str());
 		int jobt = atoi(args[2]);
 		if(jobs.size()<jobt){
-			cout << "smash error: > kill" << jobt << " - job does not exist" << '\n';
+			cout << "smash error: > kill " << jobt << " - job does not exist" << '\n';
 			complete = true;
 		}
-
+		//send signal to job
 		if(!illegal_cmd && !complete){
 			if(kill(jobs[jobt-1].getPid(),sig) == -1){
-				cout << "smash error: > kill" << jobt << " - cannot send signal" << '\n';
-			}else{
-				//handle signals
-
+				cout << "smash error: > kill " << jobt << " - cannot send signal" << '\n';
 			}
 		}
 	}/*************************************************/
 	else if (!strcmp(cmd, "quit"))
 	{
+		//simple quit
 		if (num_arg == 0) {
 			exit(1);
 		}
-
-		if (num_arg==1 && strcmp(args[1],"kill")){
+		//quit kill
+		if (num_arg==1 && strcmp(args[1],"kill") == 0){
 			for (vector<job>::iterator it =jobs.begin(); it != jobs.end(); ++it){
 				bool invalidFlag = false;
 				if (it->getPid()>0) {
-					cout << "[" << it-jobs.begin() << "] " << it->getName() << " - Sending SIGTERM... "; //MAYA: not sure about the <<it<< part
+					cout << "[" << it-jobs.begin() << "] " << it->getName() << " - Sending  ... ";
 					if (kill(it->getPid(), SIGTERM)){
 						invalidFlag = true;
 						it->setPid(0);
@@ -293,10 +290,11 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 						it->setStopTime();
 						cout << "Done." << endl;
 						break;
-					}
-					else
+					}else{
+						//waits 5 seconds for job to terminate
 						sleep(5);
-				//if 5 secs have passed and the job still exists - we are sending SIGKILL
+					}
+					// job has not terminated in 5 seconds so we force termination
 					if (invalidFlag==false)
 					{
 						cout << "(5 sec passed) ";
@@ -332,34 +330,38 @@ int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist)
 //**************************************************************************************
 void ExeExternal(char *args[MAX_ARG], char* cmdString)
 {
-	int pID = fork();
-	switch (pID)
-	{
-		case -1:
-				perror("Failed to execute");
-				break;
 
-		case 0 :
-				// Child Process
-				setpgrp();
-				execvp(cmdString, args); // change process to activate cmd
-				perror("invalid command\n"); // if execvp failed
-				exit(1);
-				break;
+		int pID = fork();
+		switch (pID)
+		{
+			case -1:
+					perror("Failed to execute");
+					break;
 
-		default:
-				//update current fg job
-				fg_job.setName(cmdString);
-				fg_job.setPid(pID);
-				fg_job.setTime(time(0)); ///MAYA: right?
-				fg_job.setStopped(FALSE);
+			case 0 :
+					// Child Process
+					// execute command and kill process
+					setpgrp();
+					execvp(cmdString, args);
+					perror("invalid command\n");
+					exit(1);
+					break;
 
-				if (waitpid(pID, NULL, WNOHANG) == 0) {
-					//wait for fg job to finish
-					waitpid(pID, NULL, WUNTRACED);
-				}
-				break;
-	}
+			default:
+					//update current fg job
+					fg_job.setName(cmdString);
+					fg_job.setPid(pID);
+					fg_job.setTime(time(0)); ///MAYA: right?
+					fg_job.setStopped(FALSE);
+
+					if (waitpid(pID, NULL, WNOHANG) == 0) {
+						//wait for fg job to finish
+						waitpid(pID, NULL, WUNTRACED);
+					}
+					break;
+			}
+
+
 }
 //**************************************************************************************
 // function name: ExeComp
@@ -369,11 +371,11 @@ void ExeExternal(char *args[MAX_ARG], char* cmdString)
 //**************************************************************************************
 int ExeComp(char* lineSize)
 {
-	char ExtCmd[MAX_LINE_SIZE+2];
+	//char ExtCmd[MAX_LINE_SIZE+2];
 	char *arguments[MAX_ARG];
     if ((strstr(lineSize, "|")) || (strstr(lineSize, "<")) || (strstr(lineSize, ">")) || (strstr(lineSize, "*")) || (strstr(lineSize, "?")) || (strstr(lineSize, ">>")) || (strstr(lineSize, "|&")))
     {
-		// Add your code here (execute a complicated command)
+    	cout << "got in Execomp" << endl;
     	char st[10] = "/bin/sh";
 
 		arguments[0] = st;
@@ -413,27 +415,25 @@ int BgCmd(char* lineSize)
 				num_arg+=1;
 				if (args[i] == NULL){
 					num_arg-=1;
-					break;
 				}
 			}
-			int pID;
-			switch(pID = fork())
+			int pID = fork();
+			switch(pID)
 			{
 				case -1:
 					perror("Failed to execute");
 					break;
-
 				case 0:
 					// Child Process
+					// execute command and kill process
 					setpgrp();
-					if (execvp(Command, args) == -1){
-						perror("invalid command\n");
-					}
+					execvp(Command, args);
+					perror("invalid command\n");
 					exit(1);
 					break;
 
 				default:
-					//sleep(1);
+					//update jobs list
 					job new_job;
 					new_job.setName(Command);
 					new_job.setPid(pID);
@@ -441,6 +441,7 @@ int BgCmd(char* lineSize)
 					new_job.setStopped(false);
 					jobs.push_back(new_job);
 					return 0;
+					break;
 			}
 		}
 	return -1;

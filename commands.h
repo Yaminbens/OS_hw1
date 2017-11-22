@@ -20,7 +20,7 @@ using namespace std;
 #include <vector>
 
 
-
+// class representing a job;
 class job
 {
   protected:
@@ -28,10 +28,9 @@ class job
 	char name_[MAXARGS];
 	long pid_, time_created_;
 	bool stopped_;
-	time_t runTime_;
-	time_t stopTime_;
+	time_t runTime_; // initialization
+	time_t stopTime_; // in case of stop
   public:
-
 	char* getName() {return name_;};
 	time_t getTime() {return time(0)-time_created_;};
 	void setTime(time_t ttime) {time_created_ = ttime;};
@@ -46,6 +45,7 @@ class job
 	void setStopTime() {stopTime_=time(0);};
 };
 
+//global variables
 extern vector<job> jobs;
 extern job fg_job;
 
@@ -55,6 +55,6 @@ typedef enum {FALSE , TRUE } Bool;
 int ExeComp(char* lineSize);
 int BgCmd(char* lineSize);
 int ExeCmd( char* lineSize, char* cmdString, char* last_pwd, list<string>& hist);
-void ExeExternal(char *args[MAX_ARG], char* cmdString);
+void ExeExternal( char *args[MAX_ARG],  char* cmdString);
 #endif
 

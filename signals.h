@@ -11,6 +11,7 @@
 
 void catch_int(int sig_num);
 
+//define externals
 extern vector<job> jobs;
 extern job fg_job;
 

@@ -14,9 +14,7 @@ main file. This file contains the main function of smash
 
 #define MAX_HISTORY 50
 
-
-
-//CPP
+//CPP includes
 #include <iostream>
 using namespace std;
 #include <list>
@@ -24,18 +22,13 @@ using namespace std;
 #include <string>
 #include <ctime>
 
-
 struct sigaction act;
-
 vector<job> jobs;
 job fg_job;
-
-
-
 char lineSize[MAX_LINE_SIZE]; 
 //**************************************************************************************
 // function name: history_update
-// Description:
+// Description: updates history of commands
 //**************************************************************************************
 void history_update(list<string>&  hist, char* cmd)
 {
@@ -54,24 +47,16 @@ void history_update(list<string>&  hist, char* cmd)
 //**************************************************************************************
 int main(int argc, char *argv[])
 {
-
     char cmdString[MAX_LINE_SIZE];
-
 	
-	//signal declaretions
-	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
-	 /* add your code here */
+	/************************************/
+	//signal declaretions and handlers
     act.sa_handler = &catch_int;
-	/************************************/
-	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
-	//set your signal handlers here
-	/* add your code here */
-
-	/************************************/
     sigaction(SIGTSTP, &act, NULL);
     sigaction(SIGCHLD, &act, NULL);
     sigaction(SIGINT, &act, NULL);
 	/************************************/
+
 	// Init globals 
     char last_pwd[MAX_LINE_SIZE];
     list<string> hist;
@@ -82,8 +67,6 @@ int main(int argc, char *argv[])
 		fgets(lineSize, MAX_LINE_SIZE, stdin);
 		strcpy(cmdString, lineSize);
 
-
-		//
 		cmdString[strlen(lineSize)-1]='\0';
 					// perform a complicated Command
 		if(!ExeComp(lineSize)) continue;
@@ -91,8 +74,8 @@ int main(int argc, char *argv[])
 		if(!BgCmd(lineSize)) continue;
 					// built in commands
 		ExeCmd(lineSize,cmdString,last_pwd,hist);
-		
-		//changes - yamin
+
+		//update history
 		history_update(hist,cmdString);
 		/* initialize for next line read*/
 		lineSize[0]='\0';
